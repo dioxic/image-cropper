@@ -1,0 +1,8 @@
+retina-face
+opencv-python~=4.8.0.76
+imutils
+mediapipe~=0.10.7
+cv2
+numpy~=1.24.3
+Pillow~=10.0.1
+argparse
