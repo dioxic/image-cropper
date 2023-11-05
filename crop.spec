@@ -2,9 +2,9 @@
 
 
 a = Analysis(
-    ['resizer_v5.py'],
+    ['crop.py'],
     pathex=[],
-    binaries=[('selfie_segmenter.tflite','.'),('selfie_segmenter_landscape.tflite','.')],
+    binaries=[('selfie_multiclass.tflite','.'),('selfie_segmenter.tflite','.'),('selfie_segmenter_landscape.tflite','.')],
     datas=[],
     hiddenimports=[],
     hookspath=[],
@@ -20,7 +20,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='resizer_v5',
+    name='crop',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -39,5 +39,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='resizer_v5',
+    name='crop',
 )
