@@ -1,26 +1,27 @@
 import argparse
+import math
 import os
-from os.path import exists, isdir, isfile, join
 import sys
-from PIL import Image
+from functools import reduce
+from os.path import exists, join
+from typing import Tuple, Union
+
 import cv2
 import mediapipe as mp
 import numpy as np
-import math
-from functools import reduce
-from typing import Tuple, Union
+from PIL import Image
 
 Image.MAX_IMAGE_PIXELS = 200000000  # Allow images up to 200 million pixels
 
 # width / height
 RESOLUTIONS = [
-    (9,16),
-    #(832, 1216),
+    (9, 16),
+    # (832, 1216),
     (896, 1152),
     (1024, 1024),
     (1152, 896),
-    #(1216, 832),
-    (16,9),
+    # (1216, 832),
+    (16, 9),
 ]
 
 SDXL_RESOLUTIONS = [
@@ -42,17 +43,20 @@ def debug(msg):
     if DEBUG:
         print(msg)
 
+
 def get_resource_dir():
     return getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
 
-def highestArea(a,b):
+
+def highest_area(a, b):
     area_a = a.bounding_box.width * a.bounding_box.height
     area_b = b.bounding_box.width * b.bounding_box.height
     if area_a > area_b:
         return a
     else:
         return b
-    
+
+
 MARGIN = 10  # pixels
 ROW_SIZE = 10  # pixels
 FONT_SIZE = 1
@@ -61,8 +65,8 @@ TEXT_COLOR = (255, 0, 0)  # red
 
 
 def _normalized_to_pixel_coordinates(
-    normalized_x: float, normalized_y: float, image_width: int,
-    image_height: int) -> Union[None, Tuple[int, int]]:
+        normalized_x: float, normalized_y: float, image_width: int,
+        image_height: int) -> Union[None, Tuple[int, int]]:
     """Converts normalized value pair to pixel coordinates."""
 
     # Checks if the float value is between 0 and 1.
@@ -73,14 +77,15 @@ def _normalized_to_pixel_coordinates(
             is_valid_normalized_value(normalized_y)):
         # TODO: Draw coordinates even if it's outside of the image bounds.
         return None
-    
+
     x_px = min(math.floor(normalized_x * image_width), image_width - 1)
     y_px = min(math.floor(normalized_y * image_height), image_height - 1)
     return x_px, y_px
-    
+
+
 def visualize(
-    image,
-    detection_result
+        image,
+        detection_result
 ) -> np.ndarray:
     """Draws bounding boxes and keypoints on the input image and return it.
     Args:
@@ -102,7 +107,7 @@ def visualize(
         # Draw keypoints
         for keypoint in detection.keypoints:
             keypoint_px = _normalized_to_pixel_coordinates(keypoint.x, keypoint.y,
-                                                            width, height)
+                                                           width, height)
             color, thickness, radius = (0, 255, 0), 2, 2
             cv2.circle(annotated_image, keypoint_px, thickness, color, radius)
 
@@ -113,17 +118,19 @@ def visualize(
         probability = round(category.score, 2)
         result_text = category_name + ' (' + str(probability) + ')'
         text_location = (MARGIN + bbox.origin_x,
-                            MARGIN + ROW_SIZE + bbox.origin_y)
+                         MARGIN + ROW_SIZE + bbox.origin_y)
         cv2.putText(annotated_image, result_text, text_location, cv2.FONT_HERSHEY_PLAIN,
                     FONT_SIZE, TEXT_COLOR, FONT_THICKNESS)
 
     return annotated_image
 
+
 def get_face(input_image, output_mask_path):
     options = mp.tasks.vision.FaceDetectorOptions(
-        base_options=mp.tasks.BaseOptions(model_asset_path=os.path.abspath(os.path.join(get_resource_dir(), 'blaze_face_short_range.tflite'))),
+        base_options=mp.tasks.BaseOptions(
+            model_asset_path=os.path.abspath(os.path.join(get_resource_dir(), 'blaze_face_short_range.tflite'))),
         running_mode=mp.tasks.vision.RunningMode.IMAGE)
-    
+
     with mp.tasks.vision.FaceDetector.create_from_options(options) as detector:
         # Create the MediaPipe image file that will be segmented
         image = mp.Image(image_format=mp.ImageFormat.SRGB, data=np.asarray(input_image))
@@ -135,7 +142,7 @@ def get_face(input_image, output_mask_path):
         if len(detector_result.detections) == 0:
             return None
 
-        biggest_face = reduce(highestArea, detector_result.detections).bounding_box
+        biggest_face = reduce(highest_area, detector_result.detections).bounding_box
 
         if output_mask_path and DEBUG:
             image_copy = np.copy(image.numpy_view())
@@ -150,6 +157,7 @@ def get_face(input_image, output_mask_path):
             biggest_face.origin_x + biggest_face.width,
             biggest_face.origin_y + biggest_face.height
         ]
+
 
 # classes:
 # 0 - background
@@ -166,7 +174,7 @@ def get_subject(input_image, output_mask_path, classes):
         model = 'selfie_segmenter.tflite'
     else:
         model = 'selfie_multiclass.tflite'
-        
+
     # Create the options that will be used for ImageSegmenter
     options = mp.tasks.vision.ImageSegmenterOptions(
         base_options=mp.tasks.BaseOptions(model_asset_path=os.path.abspath(os.path.join(get_resource_dir(), model))),
@@ -187,7 +195,7 @@ def get_subject(input_image, output_mask_path, classes):
         if classes is None:
             mask = segmentation_result.confidence_masks[0].numpy_view()
         else:
-            mask = np.zeros(image_data.shape, dtype=np.uint8)[:,:,0]
+            mask = np.zeros(image_data.shape, dtype=np.uint8)[:, :, 0]
             for classIdx in classes:
                 mask = np.maximum(mask, segmentation_result.confidence_masks[classIdx].numpy_view())
 
@@ -204,7 +212,7 @@ def get_subject(input_image, output_mask_path, classes):
 
         if len(subject) == 0:
             return None
-        
+
         print(subject)
 
         y1, x1, z1 = subject.min(axis=0)
@@ -215,6 +223,7 @@ def get_subject(input_image, output_mask_path, classes):
             debug(f"saving mask to {output_mask_path}")
             cv2.imwrite(output_mask_path, output_image)
         return [x1, y1, x2, y2]
+
 
 def crop_image(image, subject, resolutions, padding, border=0):
     subject_left, subject_top, subject_right, subject_bottom = subject
@@ -286,7 +295,7 @@ def best_resolution(subject, image, resolutions, border):
     subject_height = subject_bottom - subject_top
     subject_width = subject_right - subject_left
     subject_aspect_ratio = subject_width / subject_height
-    best_diff = 4096*4096
+    best_diff = 4096 * 4096
     best_dimensions = None
     best_fits = False
 
@@ -296,8 +305,8 @@ def best_resolution(subject, image, resolutions, border):
         debug(f"  resolution: {res} - aspect: {res_aspect_ratio}")
         new_width, new_height = apply_resolution(subject, image, res, border)
 
-        diff = int(abs((new_width*new_height) - (subject_width*subject_height)))
-        fits = new_width >= subject_width-4 and new_height >= subject_height-4
+        diff = int(abs((new_width * new_height) - (subject_width * subject_height)))
+        fits = new_width >= subject_width - 4 and new_height >= subject_height - 4
 
         debug(f"  fits: {fits}, width: {new_width}, height: {new_height}, diff: {diff}")
 
@@ -382,7 +391,7 @@ def main():
     parser.add_argument('--debug', help='Debug mode.', action='store_true', default=False)
     parser.add_argument('--force', help='Overwrite existing file if present.', action='store_true', default=False)
     parser.add_argument('--sdxl', help='Use SDXL aspect ratios.', action='store_true', default=False)
-    #parser.add_argument('--face', help='Crop to face.', action='store_true', default=False)
+    # parser.add_argument('--face', help='Crop to face.', action='store_true', default=False)
     parser.add_argument('--seg', help='Segmentation class.', action='append', type=int)
 
     args = parser.parse_args()
