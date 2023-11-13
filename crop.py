@@ -189,8 +189,6 @@ def get_subject(input_image, output_mask_path, classes):
 
         # Retrieve the masks for the segmented image
         segmentation_result = segmenter.segment(image)
-        print(segmentation_result)
-        print(f"length: {len(segmentation_result.confidence_masks)}")
 
         if classes is None:
             mask = segmentation_result.confidence_masks[0].numpy_view()
@@ -212,8 +210,6 @@ def get_subject(input_image, output_mask_path, classes):
 
         if len(subject) == 0:
             return None
-
-        print(subject)
 
         y1, x1, z1 = subject.min(axis=0)
         y2, x2, z2 = subject.max(axis=0)
@@ -351,7 +347,7 @@ def apply_resolution(subject, image, resolution, border=0):
     return [new_width, new_height]
 
 
-def process_images(image_paths, output_path, limit, padding, border, force, resolutions, classes):
+def process_images(image_paths, output_path, limit, padding, border, force, resolutions, classes, min_edge):
     processed_count = 0
     image_count = len(image_paths)
 
@@ -367,9 +363,14 @@ def process_images(image_paths, output_path, limit, padding, border, force, reso
 
             if subject is not None:
                 cropped = crop_image(image, subject, resolutions, padding, border)
-                os.makedirs(os.path.dirname(target), exist_ok=True)
-                cropped.save(target, quality=100)
+
+                if cropped.width >= min_edge and cropped.height >= min_edge:
+                    os.makedirs(os.path.dirname(target), exist_ok=True)
+                    cropped.save(target, quality=100)
+                else:
+                    print(f"skipping {os.path.basename(image_path)} - size too small {cropped.size}")
                 processed_count += 1
+
             else:
                 print(f"skipping {os.path.basename(image_path)} - cannot find subject")
                 image_count -= 1
@@ -392,7 +393,8 @@ def main():
     parser.add_argument('--force', help='Overwrite existing file if present.', action='store_true', default=False)
     parser.add_argument('--sdxl', help='Use SDXL aspect ratios.', action='store_true', default=False)
     # parser.add_argument('--face', help='Crop to face.', action='store_true', default=False)
-    parser.add_argument('--seg', help='Segmentation class.', action='append', type=int)
+    parser.add_argument('--seg-class', help='Segmentation class.', action='append', type=int)
+    parser.add_argument("--min-edge", help='Skip images with an edge < minimum.', type=int, default=1024)
 
     args = parser.parse_args()
 
@@ -404,7 +406,7 @@ def main():
     else:
         res = RESOLUTIONS
 
-    process_images(args.files, args.out, args.limit, args.padding, args.border, args.force, res, args.seg)
+    process_images(args.files, args.out, args.limit, args.padding, args.border, args.force, res, args.seg_class, args.min_edge)
 
     print("Processing complete!")
 
