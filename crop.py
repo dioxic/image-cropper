@@ -16,11 +16,11 @@ Image.MAX_IMAGE_PIXELS = 200000000  # Allow images up to 200 million pixels
 # width / height
 RESOLUTIONS = [
     (9, 16),
-    # (832, 1216),
+    (832, 1216),
     (896, 1152),
     (1024, 1024),
     (1152, 896),
-    # (1216, 832),
+    (1216, 832),
     (16, 9),
 ]
 
@@ -369,10 +369,14 @@ def process_images(image_paths, output_path, limit, padding, border, force, reso
                     cropped.save(target, quality=100)
                 else:
                     print(f"skipping {os.path.basename(image_path)} - size too small {cropped.size}")
+                    image.save(target, quality=100)
                 processed_count += 1
 
             else:
-                print(f"skipping {os.path.basename(image_path)} - cannot find subject")
+                print(f"{os.path.basename(image_path)} - cannot find subject")
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                
+                image.save(target, quality=100)
                 image_count -= 1
             print(f"Processed {processed_count}/{image_count} images")
 
