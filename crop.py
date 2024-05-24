@@ -347,7 +347,7 @@ def apply_resolution(subject, image, resolution, border=0):
     return [new_width, new_height]
 
 
-def process_images(image_paths, output_path, limit, padding, border, force, resolutions, classes, min_edge):
+def process_images(image_paths, output_path, limit, padding, border, force, resolutions, classes, min_edge, copy_small):
     processed_count = 0
     image_count = len(image_paths)
 
@@ -369,7 +369,8 @@ def process_images(image_paths, output_path, limit, padding, border, force, reso
                     cropped.save(target, quality=100)
                 else:
                     print(f"skipping {os.path.basename(image_path)} - size too small {cropped.size}")
-                    image.save(target, quality=100)
+                    if copy_small:
+                        image.save(target, quality=100)
                 processed_count += 1
 
             else:
@@ -395,6 +396,7 @@ def main():
     parser.add_argument('--border', default=0, help='Number of px to remove from image border.', type=int)
     parser.add_argument('--debug', help='Debug mode.', action='store_true', default=False)
     parser.add_argument('--force', help='Overwrite existing file if present.', action='store_true', default=False)
+    parser.add_argument('--copy-small', help='Copy images that don''t meet min-edge.', action='store_true', default=False)
     parser.add_argument('--sdxl', help='Use SDXL aspect ratios.', action='store_true', default=False)
     # parser.add_argument('--face', help='Crop to face.', action='store_true', default=False)
     parser.add_argument('--seg-class', help='Segmentation class.', action='append', type=int)
@@ -410,7 +412,7 @@ def main():
     else:
         res = RESOLUTIONS
 
-    process_images(args.files, args.out, args.limit, args.padding, args.border, args.force, res, args.seg_class, args.min_edge)
+    process_images(args.files, args.out, args.limit, args.padding, args.border, args.force, res, args.seg_class, args.min_edge, args.copy_small)
 
     print("Processing complete!")
 
