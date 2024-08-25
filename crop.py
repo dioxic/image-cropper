@@ -3,7 +3,7 @@ import math
 import os
 import sys
 from functools import reduce
-from os.path import exists, join
+from os.path import exists, join, isfile, isdir
 from typing import Tuple, Union
 
 import cv2
@@ -24,6 +24,7 @@ RESOLUTIONS = [
     (16, 9),
 ]
 
+# width / height
 SDXL_RESOLUTIONS = [
     (640, 1536),
     (768, 1344),
@@ -36,8 +37,6 @@ SDXL_RESOLUTIONS = [
 ]
 
 DEBUG = True
-NUM_THREADS = 1  # Modify this for the desired number of threads
-
 
 def debug(msg):
     if DEBUG:
@@ -352,6 +351,7 @@ def process_images(image_paths, output_path, limit, padding, border, force, reso
     image_count = len(image_paths)
 
     for image_path in image_paths:
+        print(image_path)
         target = join(output_path, os.path.basename(image_path))
         if not force and exists(target):
             debug(f"skipping {os.path.basename(image_path)} - file exists")
@@ -388,19 +388,18 @@ def process_images(image_paths, output_path, limit, padding, border, force, reso
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Process images in a folder.')
-    parser.add_argument('files', nargs="+", help="Source files")
-    parser.add_argument('--out', required=True, help='The output directory.')
-    parser.add_argument('--limit', required=False, help='Limit the number of files to crop.', type=int)
-    parser.add_argument('--padding', default=40, help='Subject padding px or fractional %.', type=float)
-    parser.add_argument('--border', default=0, help='Number of px to remove from image border.', type=int)
-    parser.add_argument('--debug', help='Debug mode.', action='store_true', default=False)
-    parser.add_argument('--force', help='Overwrite existing file if present.', action='store_true', default=False)
-    parser.add_argument('--copy-small', help='Copy images that don''t meet min-edge.', action='store_true', default=False)
-    parser.add_argument('--sdxl', help='Use SDXL aspect ratios.', action='store_true', default=False)
-    # parser.add_argument('--face', help='Crop to face.', action='store_true', default=False)
-    parser.add_argument('--seg-class', help='Segmentation class.', action='append', type=int)
-    parser.add_argument("--min-edge", help='Skip images with an edge < minimum.', type=int, default=1024)
+    parser = argparse.ArgumentParser(description='Process images in a folder.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('inputs', nargs="+", help="Source files / dir")
+    parser.add_argument('--out', required=True, help='The output directory', default=argparse.SUPPRESS)
+    parser.add_argument('--limit', required=False, help='Limit the number of files to crop', type=int)
+    parser.add_argument('--padding', default=40, help='Subject padding px or fractional percent', type=float)
+    parser.add_argument('--border', default=0, help='Number of px to remove from image border', type=int)
+    parser.add_argument('--debug', help='Debug mode', action='store_true', default=False)
+    parser.add_argument('--force', help='Overwrite existing file if present', action='store_true', default=False)
+    parser.add_argument('--copy-small', help='Copy images that don''t meet min-edge', action='store_true', default=False)
+    parser.add_argument('--sdxl', help='Use SDXL aspect ratios', action='store_true', default=False)
+    parser.add_argument('--seg-class', help='Segmentation class', action='append', type=int, choices=[0,1,2,3,4,5])
+    parser.add_argument("--min-edge", help='Skip images with an edge < minimum', type=int, default=1024)
 
     args = parser.parse_args()
 
@@ -412,7 +411,19 @@ def main():
     else:
         res = RESOLUTIONS
 
-    process_images(args.files, args.out, args.limit, args.padding, args.border, args.force, res, args.seg_class, args.min_edge, args.copy_small)
+    files = []
+
+    for i in args.inputs:
+        if isdir(i):
+            files.extend([join(i, f) for f in os.listdir(i) if isfile(join(i, f))])
+        elif isfile(i):
+            files.append(i)
+        else:
+            print(f"{i} is not a file or a dir!")
+
+    print(files)
+
+    process_images(files, args.out, args.limit, args.padding, args.border, args.force, res, args.seg_class, args.min_edge, args.copy_small)
 
     print("Processing complete!")
 
