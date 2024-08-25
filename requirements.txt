@@ -1,7 +1,6 @@
-opencv-python~=4.8.0.76
+opencv-python~=4.10.0.82
 imutils
-mediapipe~=0.10.7
-cv2
+mediapipe~=0.10.14
 numpy~=1.24.3
 Pillow~=10.0.1
 argparse
