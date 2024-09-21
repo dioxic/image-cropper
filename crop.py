@@ -400,16 +400,24 @@ def main():
     parser.add_argument('--sdxl', help='Use SDXL aspect ratios', action='store_true', default=False)
     parser.add_argument('--seg-class', help='Segmentation class', action='append', type=int, choices=[0,1,2,3,4,5])
     parser.add_argument("--min-edge", help='Skip images with an edge < minimum', type=int, default=1024)
+    parser.add_argument("--ar", help='List permissible aspect ratios (e.g. 1:1,2:3')
 
     args = parser.parse_args()
 
     global DEBUG
     DEBUG = args.debug
 
-    if args.sdxl:
+    if args.ar:
+        res = []
+        for ratio in args.ar.split(","):
+            x,y = ratio.split(":")
+            res.append((int(x),int(y)))
+    elif args.sdxl:
         res = SDXL_RESOLUTIONS
     else:
         res = RESOLUTIONS
+
+    print(res)
 
     files = []
 
